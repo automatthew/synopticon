@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <title>Barkley</title>
+  </head>
+  <body>
+    Here is a <a href="javascript:(function() {
+  var s=document.createElement(&quot;script&quot;);
+  s.src=&quot;http://localhost:8000/build/synopticon.js&quot;;
+  document.body.appendChild(s);
+  s.onload = function () {
+   Synopticon = require(&quot;./synopticon&quot;);
+    syn = new Synopticon(&quot;monkey&quot;);
+    syn.go();
+  };
+})();
+" id="bookmarklet">barkley</a>.
+  </body>
+</html>
