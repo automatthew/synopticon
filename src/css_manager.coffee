@@ -10,7 +10,6 @@ class CSSManager
   create_listener: (callback) ->
     manager = @
     () ->
-      console.log("checking css")
       current = manager.process_stylesheets()
       diffs = {}
       for href, new_rules of current
