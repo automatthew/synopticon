@@ -16,8 +16,8 @@ class Synopticon
     @dom_manager.apply_change(path, data)
 
   send_css_change: (patchset) =>
-    for href, patch of patchset
-      @css_manager.apply_changes(href, patch)
+    for patch, i in patchset
+      @css_manager.apply_changes(i, patch)
 
   snapshot: ->
     dom = @dom_manager.snapshot()
