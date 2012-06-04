@@ -1,24 +1,23 @@
 Diff = require("./diff")
-CSSPatcher = require("./css_patcher")
+DOMManager = require("./dom_manager")
+CSSManager = require("./css_manager")
 
 class Synopticon
   constructor: (@name) ->
-    @name
-    @last = @process_stylesheets()
+    @css_manager = new CSSManager(3000)
 
   go: -> @listen()
 
   listen: ->
     console.log("starting synopticon")
     document.body.addEventListener "DOMSubtreeModified", @local_dom_listener
-    #setInterval @local_css_listener, 2000
+    @css_manager.listen(@send_css_change)
 
   snapshot: ->
-    dom = @snapshot_dom()
-    css = @snapshot_css()
+    dom = @dom_manager.snapshot()
+    css = @css_manager.snapshot()
     # send to snapshot channel
     
-
 
   local_dom_listener: (ev) =>
     #console.log(ev)
@@ -31,6 +30,11 @@ class Synopticon
   send_dom_change: (path, data) ->
     # TODO: compress data for transmission via spire
     console.log(path, data.length)
+
+  send_css_change: (patchset) =>
+    for href, patch of patchset
+      for hunk in patch
+        console.log(href, hunk.file2.chunk)
 
   remote_listener: (data) =>
     data
@@ -69,27 +73,6 @@ class Synopticon
         if sibling.nodeType == 1 && sibling.tagName == element.tagName
           ix++
 
-  local_css_listener: () =>
-    console.log("checking css")
-    current = @process_stylesheets()
-    diffs = {}
-    for href, new_rules of current
-      old_rules = @last[href] # TODO: handle missing old
-      diffs[href] = Diff.diff_patch(old_rules, new_rules)
-      console.log(diffs[href][0].file2.chunk) if diffs[href].length > 0
-    @last = current
-    diffs
 
-  process_stylesheets: ->
-    sheets = {}
-    for sheet in document.styleSheets
-      sheets[sheet.href] = @process_sheet(sheet)
-    sheets
-
-  process_sheet: (sheet) ->
-    if sheet.rules
-      rule.cssText for rule in sheet.rules
-    else
-      []
 
 module.exports = Synopticon
