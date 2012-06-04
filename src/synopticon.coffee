@@ -1,4 +1,3 @@
-Diff = require("./diff")
 DOMManager = require("./dom_manager")
 CSSManager = require("./css_manager")
 
@@ -34,7 +33,6 @@ class Synopticon
     for href, patch of patchset
       for hunk in patch
         console.log(href, hunk.file2.chunk)
-
 
 
 module.exports = Synopticon

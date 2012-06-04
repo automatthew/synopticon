@@ -1,3 +1,5 @@
+Diff = require("./diff")
+
 CSSPatcher = require "./css_patcher"
 
 class CSSManager
