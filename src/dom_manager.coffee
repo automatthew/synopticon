@@ -3,23 +3,22 @@ class DOMManager
   constructor: ->
 
   listen: (callback) ->
-    document.body.addEventListener(
+    document.addEventListener(
       "DOMSubtreeModified", @create_listener(callback)
     )
 
   create_listener: (callback) ->
     manager = @
     (event) ->
-      element = event.target
-      if element.constructor == Text
-        element = element.parentElement
-      path = manager.xpath(element)
-      callback(path, element.outerHTML)
+      if !manager.ignore
+        element = event.target
+        if element.constructor == Text
+          element = element.parentElement
+        path = manager.xpath(element)
+        callback(path, element.outerHTML)
 
-  apply_dom_change: (path, data) ->
-    # TODO:  consider checking some variable instead of removing
-    # and readding the local_dom_listener
-    document.body.removeEventListener("DOMSubtreeModified", @local_dom_listener)
+  apply_change: (path, data) ->
+    @ignore = true
 
     iter = document.evaluate(
       path, document, null,
@@ -28,17 +27,17 @@ class DOMManager
     )
     found = iter.iterateNext()
     if found
-      console.log(found)
-      found.outerHTML = data
+      console.log("DOM change:", path, data)
+      #found.outerHTML = data
     else
-      console.log("Something went wrong")
+      console.log("Couldn't find DOM element:")
       console.log(path, data)
-    document.body.addEventListener "DOMSubtreeModified", @local_dom_listener
+    @ignore = false
 
   xpath: (element) ->
     if element.id != ""
       return "id(\"#{element.id}\")"
-    else if element == document.body
+    else if (element == document.body) || (element == document.head)
       return "//#{element.tagName}"
     else
       ix = 0
