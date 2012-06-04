@@ -1,24 +1,36 @@
 Diff = require("./diff")
+CSSPatcher = require("./css_patcher")
 
 class Synopticon
   constructor: (@name) ->
     @name
     @last = @process_stylesheets()
 
-  go: ->
+  go: -> @listen()
+
+  listen: ->
+    console.log("starting synopticon")
     document.body.addEventListener "DOMSubtreeModified", @local_dom_listener
-    setInterval @local_css_listener, 2000
+    #setInterval @local_css_listener, 2000
+
+  snapshot: ->
+    dom = @snapshot_dom()
+    css = @snapshot_css()
+    # send to snapshot channel
+    
+
 
   local_dom_listener: (ev) =>
-    console.log(ev)
+    #console.log(ev)
     element = ev.target
     if element.constructor == Text
       element = element.parentElement
     path = @xpath(element)
-    console.log(element)
+    @send_dom_change(path, element.outerHTML)
 
   send_dom_change: (path, data) ->
-
+    # TODO: compress data for transmission via spire
+    console.log(path, data.length)
 
   remote_listener: (data) =>
     data
@@ -30,10 +42,16 @@ class Synopticon
 
     iter = document.evaluate(
       path, document, null,
+      # TODO: figure out actually useful options
       XPathResult.ANY_TYPE, null
     )
     found = iter.iterateNext()
-    console.log(found)
+    if found
+      console.log(found)
+      found.outerHTML = data
+    else
+      console.log("Something went wrong")
+      console.log(path, data)
     document.body.addEventListener "DOMSubtreeModified", @local_dom_listener
 
 
