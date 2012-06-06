@@ -5,8 +5,13 @@ class CSSManager
   constructor: (@interval) ->
     @last = @process_stylesheets()
 
+  snapshot: ->
+
   listen: (callback) ->
     setInterval(@create_listener(callback), @interval)
+
+  find_stylesheet_by_href: (href) ->
+
 
   create_listener: (callback) ->
     manager = @
@@ -37,9 +42,10 @@ class CSSManager
       []
 
   apply_changes: (index, data) ->
-    style_sheet = document.styleSheets[index]
+    stylesheet = document.styleSheets[index]
 
-    patcher = new CSSPatcher(style_sheet)
+    patcher = new CSSPatcher(stylesheet)
     patcher.apply_patch(data)
+
 
 module.exports = CSSManager

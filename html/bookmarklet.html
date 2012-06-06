@@ -3,16 +3,19 @@
     <title>Synopticon Bookmarklet</title>
   </head>
   <body>
+    <p>
     Here is a <a href="javascript:(function() {
   var s=document.createElement(&quot;script&quot;);
-  s.src=&quot;http://localhost:8000/build/synopticon.js&quot;;
-  document.body.appendChild(s);
+  s.src=&quot;http://localhost:8000/synopticon.js&quot;;
+  document.head.appendChild(s);
   s.onload = function () {
-   Synopticon = require(&quot;./synopticon&quot;);
-    syn = new Synopticon(&quot;monkey&quot;);
+   Synopticon = require(&quot;/synopticon&quot;);
+    syn = new Synopticon();
     syn.listen();
   };
 })();
-" id="bookmarklet">Synopticon</a> I made for you.
+" id="bookmarklet">Synopticon</a> I made for you.</p>
+
+  <p>Use it wisely.</p>
   </body>
 </html>
