@@ -6,9 +6,13 @@ class Synopticon
   constructor: (@options) ->
     @dom_manager = new DOMManager()
     @css_manager = new CSSManager(2000)
-    #@spire = new Spire
-      #url: "http://localhost:1337"
-    #@spire.login("spireio@mailinator.com", "spire.io.rb")
+
+  listen: ->
+    synopt = @
+    console.log("starting Synopticon")
+    @inject_spire =>
+      @css_manager.listen(@send_css_change)
+      @dom_manager.listen(@send_dom_change)
 
   inject_spire: (callback) ->
     synopticon = @
@@ -78,12 +82,7 @@ class Synopticon
     }
 
 
-  listen: ->
-    synopt = @
-    console.log("starting Synopticon")
-    @inject_spire =>
-      @css_manager.listen(@send_css_change)
-      @dom_manager.listen(@send_dom_change)
+
 
   send_dom_change: (path, data) =>
     # TODO: compress data for transmission via spire
