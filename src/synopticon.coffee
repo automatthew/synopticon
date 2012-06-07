@@ -3,7 +3,7 @@ CSSManager = require("./css_manager")
 
 
 class Synopticon
-  constructor: (@role) ->
+  constructor: (@spire_url, @role, @accessors) ->
     if @role == "master"
       console.log("starting Synopticon as master.")
     else if @role == "slave"
@@ -26,7 +26,7 @@ class Synopticon
     document.head.appendChild(s)
     s.addEventListener "load", =>
       Spire = window.require("./spire.io.js")
-      @spire = new Spire(url: "http://localhost:1337")
+      @spire = new Spire(url: @spire_url)
       @spire.login "spireio@mailinator.com", "spire.io.rb", (err, session) =>
         if !err
           console.log "spire login worked"
@@ -37,19 +37,9 @@ class Synopticon
 
   listen_master: ->
     Channel = window.require("./spire/api/channel")
-    accessors = @spire_accessors()
-    @css_channel = new Channel @spire,
-      url: accessors.css.url
-      capabilities:
-        publish: accessors.css.publish
-    @dom_channel = new Channel @spire,
-      url: accessors.dom.url
-      capabilities:
-        publish: accessors.dom.publish
-    @snapshot_channel = new Channel @spire,
-      url: accessors.snapshot.url
-      capabilities:
-        publish: accessors.snapshot.publish
+    @css_channel = new Channel @spire, @accessors.css
+    @dom_channel = new Channel @spire, @accessors.dom
+    @snapshot_channel = new Channel @spire, @accessors.snapshot
 
     @css_manager.listen(@send_css_change)
     @dom_manager.listen(@send_dom_change)
@@ -57,18 +47,13 @@ class Synopticon
   listen_slave: ->
     synopticon = @
     Subscription = window.require("./spire/api/subscription")
-    accessors = @spire_accessors()
-    @subscription = new Subscription @spire,
-      url: accessors.subscription.url
-      capabilities:
-        events: accessors.subscription.events
+    @subscription = new Subscription @spire, @accessors.subscription
     @subscription.addListener "message", (message) ->
       content = message.content
       channel = message.data.channel_name
-      #console.log(content)
-      if channel == "dom"
+      if channel.indexOf(".dom") != -1
         synopticon.dom_manager.apply_change(content.path, content.data)
-      else if channel == "css"
+      else if channel.indexOf(".css") != -1
         for patch, i in content
           synopticon.css_manager.apply_changes(i, patch)
       else
@@ -90,27 +75,6 @@ class Synopticon
     dom = @dom_manager.snapshot()
     css = @css_manager.snapshot()
     # send to snapshot channel
-
-  spire_accessors: ->
-    {
-      "subscription": {
-        "url": "http://localhost:1337/account/Ac-AwE/subscription/AnonSu-Q2gtQlFFLENoLUJnRSxDaC1JQUU",
-        "events": "yMKA8es2pWROb29kig3WCxw"
-      },
-      "css": {
-        "publish": "MDmKOB7NmXcNiChWD08iJw",
-        "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-IAE"
-      },
-      "dom": {
-        "publish": "KwFjC5msfCfp7FK210HxWw",
-        "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-BgE"
-      },
-      "snapshot": {
-        "publish": "bzf4bJH68ifSHgPjAMnUUg",
-        "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-BQE"
-      }
-    }
-
 
 
 module.exports = Synopticon

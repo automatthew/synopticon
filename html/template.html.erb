@@ -1,0 +1,44 @@
+<html>
+  <head>
+    <title>Synopticon Bookmarklets</title>
+  </head>
+  <body>
+    <h1>Synopticon</h1>
+    <p>
+    <a href="javascript:(function() {
+  var s=document.createElement('script');
+  s.src='<%= url %>';
+  document.head.appendChild(s);
+  s.onload = function () {
+   Synopticon = require('/synopticon');
+   syn = new Synopticon(
+     '<%= spire_url %>',
+     'master',
+     <%= master_accessors %> 
+   );
+   syn.listen();
+  };
+})();
+" id="master_bookmarklet">master</a> bookmarklet.</p>
+
+    <p>
+    <a href="javascript:(function() {
+  var s=document.createElement('script');
+  s.src='<%= url %>';
+  document.head.appendChild(s);
+  s.onload = function () {
+   Synopticon = require('/synopticon');
+   syn = new Synopticon(
+     '<%= spire_url %>',
+     'slave',
+     <%= slave_accessors %>
+   );
+   syn.listen();
+  };
+})();
+" id="slave_bookmarklet">slave</a> bookmarklet.</p>
+
+  <p>Use it wisely.</p>
+  </body>
+</html>
+

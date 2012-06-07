@@ -1124,8 +1124,10 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
 
   Synopticon = (function() {
 
-    function Synopticon(role) {
+    function Synopticon(spire_url, role, accessors) {
+      this.spire_url = spire_url;
       this.role = role;
+      this.accessors = accessors;
       this.send_css_change = __bind(this.send_css_change, this);
 
       this.send_dom_change = __bind(this.send_dom_change, this);
@@ -1162,7 +1164,7 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
         var Spire;
         Spire = window.require("./spire.io.js");
         _this.spire = new Spire({
-          url: "http://localhost:1337"
+          url: _this.spire_url
         });
         return _this.spire.login("spireio@mailinator.com", "spire.io.rb", function(err, session) {
           if (!err) {
@@ -1176,49 +1178,27 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
     };
 
     Synopticon.prototype.listen_master = function() {
-      var Channel, accessors;
+      var Channel;
       Channel = window.require("./spire/api/channel");
-      accessors = this.spire_accessors();
-      this.css_channel = new Channel(this.spire, {
-        url: accessors.css.url,
-        capabilities: {
-          publish: accessors.css.publish
-        }
-      });
-      this.dom_channel = new Channel(this.spire, {
-        url: accessors.dom.url,
-        capabilities: {
-          publish: accessors.dom.publish
-        }
-      });
-      this.snapshot_channel = new Channel(this.spire, {
-        url: accessors.snapshot.url,
-        capabilities: {
-          publish: accessors.snapshot.publish
-        }
-      });
+      this.css_channel = new Channel(this.spire, this.accessors.css);
+      this.dom_channel = new Channel(this.spire, this.accessors.dom);
+      this.snapshot_channel = new Channel(this.spire, this.accessors.snapshot);
       this.css_manager.listen(this.send_css_change);
       return this.dom_manager.listen(this.send_dom_change);
     };
 
     Synopticon.prototype.listen_slave = function() {
-      var Subscription, accessors, synopticon;
+      var Subscription, synopticon;
       synopticon = this;
       Subscription = window.require("./spire/api/subscription");
-      accessors = this.spire_accessors();
-      this.subscription = new Subscription(this.spire, {
-        url: accessors.subscription.url,
-        capabilities: {
-          events: accessors.subscription.events
-        }
-      });
+      this.subscription = new Subscription(this.spire, this.accessors.subscription);
       this.subscription.addListener("message", function(message) {
         var channel, content, i, patch, _i, _len, _results;
         content = message.content;
         channel = message.data.channel_name;
-        if (channel === "dom") {
+        if (channel.indexOf(".dom") !== -1) {
           return synopticon.dom_manager.apply_change(content.path, content.data);
-        } else if (channel === "css") {
+        } else if (channel.indexOf(".css") !== -1) {
           _results = [];
           for (i = _i = 0, _len = content.length; _i < _len; i = ++_i) {
             patch = content[i];
@@ -1252,27 +1232,6 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
       var css, dom;
       dom = this.dom_manager.snapshot();
       return css = this.css_manager.snapshot();
-    };
-
-    Synopticon.prototype.spire_accessors = function() {
-      return {
-        "subscription": {
-          "url": "http://localhost:1337/account/Ac-AwE/subscription/AnonSu-Q2gtQlFFLENoLUJnRSxDaC1JQUU",
-          "events": "yMKA8es2pWROb29kig3WCxw"
-        },
-        "css": {
-          "publish": "MDmKOB7NmXcNiChWD08iJw",
-          "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-IAE"
-        },
-        "dom": {
-          "publish": "KwFjC5msfCfp7FK210HxWw",
-          "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-BgE"
-        },
-        "snapshot": {
-          "publish": "bzf4bJH68ifSHgPjAMnUUg",
-          "url": "http://localhost:1337/account/Ac-AwE/channel/Ch-BQE"
-        }
-      };
     };
 
     return Synopticon;
