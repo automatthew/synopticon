@@ -27,7 +27,9 @@ class CSSManager
           diffs.push([])
           console.log("couldn't find rules")
       manager.last = current
-      callback(diffs) if Object.keys(diffs).length > 0
+      worthy = diffs.some (diff) -> diff.length > 0
+      if worthy
+        callback(diffs)
 
   process_stylesheets: ->
     sheets = []
@@ -36,7 +38,7 @@ class CSSManager
     sheets
 
   process_sheet: (sheet) ->
-    if sheet.href and sheet.rules
+    if sheet.rules
       rule.cssText for rule in sheet.rules
     else
       []

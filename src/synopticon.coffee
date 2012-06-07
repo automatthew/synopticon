@@ -3,46 +3,40 @@ CSSManager = require("./css_manager")
 
 
 class Synopticon
-  constructor: (@options) ->
+  constructor: (@role) ->
+    if @role == "master"
+      console.log("starting Synopticon as master.")
+    else if @role == "slave"
+      console.log("starting Synopticon as slave.")
+    else
+      console.log("unknown role: #{role}")
     @dom_manager = new DOMManager()
     @css_manager = new CSSManager(2000)
 
   listen: ->
-    synopt = @
-    console.log("starting Synopticon")
+    synopticon = @
+    role = synopticon.role
     @inject_spire =>
-      @css_manager.listen(@send_css_change)
-      @dom_manager.listen(@send_dom_change)
+      synopticon["listen_#{role}"]()
 
   inject_spire: (callback) ->
     synopticon = @
     s = document.createElement("script")
-    s.src = "/spire.io.bundle.js"
+    s.src = "http://localhost:8000/spire.io.bundle.js"
     document.head.appendChild(s)
-    s.onload = () =>
-      console.log "trying to snarf spire"
+    s.addEventListener "load", =>
       Spire = window.require("./spire.io.js")
-      @init_spire(Spire, callback)
-      #spire = synopticon.spire = new Spire(url: "http://localhost:1337")
-      #spire.login "spireio@mailinator.com", "spire.io.rb", (err, session) ->
-        #if !err
-          #console.log "spire login worked"
-          #callback()
+      @spire = new Spire(url: "http://localhost:1337")
+      @spire.login "spireio@mailinator.com", "spire.io.rb", (err, session) =>
+        if !err
+          console.log "spire login worked"
+          callback()
+        else
+          console.log(err)
 
 
-  init_spire: (constructor, callback) ->
-    @spire = new constructor(url: "http://localhost:1337")
-    @spire.login "spireio@mailinator.com", "spire.io.rb", (err, session) =>
-      if !err
-        console.log "spire login worked"
-        @spire_setup()
-        callback()
-      else
-        console.log(err)
-
-  spire_setup : ->
+  listen_master: ->
     Channel = window.require("./spire/api/channel")
-    Subscription = window.require("./spire/api/subscription")
     accessors = @spire_accessors()
     @css_channel = new Channel @spire,
       url: accessors.css.url
@@ -56,16 +50,52 @@ class Synopticon
       url: accessors.snapshot.url
       capabilities:
         publish: accessors.snapshot.publish
+
+    @css_manager.listen(@send_css_change)
+    @dom_manager.listen(@send_dom_change)
+
+  listen_slave: ->
+    synopticon = @
+    Subscription = window.require("./spire/api/subscription")
+    accessors = @spire_accessors()
     @subscription = new Subscription @spire,
       url: accessors.subscription.url
       capabilities:
-        messages: accessors.subscription.messages
+        events: accessors.subscription.events
+    @subscription.addListener "message", (message) ->
+      content = message.content
+      channel = message.data.channel_name
+      #console.log(content)
+      if channel == "dom"
+        synopticon.dom_manager.apply_change(content.path, content.data)
+      else if channel == "css"
+        for patch, i in content
+          synopticon.css_manager.apply_changes(i, patch)
+      else
+        console.log(channel)
+        console.log(message.content)
+    @subscription.startListening(last: "now")
+
+
+  send_dom_change: (path, data) =>
+    # TODO: compress data for transmission via spire
+    console.log(path, data)
+    @dom_channel.publish({path: path, data:data})
+
+  send_css_change: (patchset) =>
+    console.log(patchset)
+    @css_channel.publish(patchset)
+
+  snapshot: ->
+    dom = @dom_manager.snapshot()
+    css = @css_manager.snapshot()
+    # send to snapshot channel
 
   spire_accessors: ->
     {
       "subscription": {
-        "url": "http://localhost:1337/account/Ac-AwE/subscription/AnonSu-Q2gtQmdF",
-        "messages": "rQ0jHMEiBKucOgQIuSHJrQ"
+        "url": "http://localhost:1337/account/Ac-AwE/subscription/AnonSu-Q2gtQlFFLENoLUJnRSxDaC1JQUU",
+        "events": "yMKA8es2pWROb29kig3WCxw"
       },
       "css": {
         "publish": "MDmKOB7NmXcNiChWD08iJw",
@@ -82,19 +112,5 @@ class Synopticon
     }
 
 
-
-
-  send_dom_change: (path, data) =>
-    # TODO: compress data for transmission via spire
-    @dom_manager.apply_change(path, data)
-
-  send_css_change: (patchset) =>
-    for patch, i in patchset
-      @css_manager.apply_changes(i, patch)
-
-  snapshot: ->
-    dom = @dom_manager.snapshot()
-    css = @css_manager.snapshot()
-    # send to snapshot channel
 
 module.exports = Synopticon

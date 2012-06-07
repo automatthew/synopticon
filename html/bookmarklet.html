@@ -1,20 +1,34 @@
 <html>
   <head>
-    <title>Synopticon Bookmarklet</title>
+    <title>Synopticon Bookmarklets</title>
   </head>
   <body>
+    <h1>Synopticon</h1>
     <p>
-    Here is a <a href="javascript:(function() {
+    <a href="javascript:(function() {
   var s=document.createElement(&quot;script&quot;);
   s.src=&quot;http://localhost:8000/synopticon.js&quot;;
   document.head.appendChild(s);
   s.onload = function () {
    Synopticon = require(&quot;/synopticon&quot;);
-    syn = new Synopticon();
+    syn = new Synopticon(&quot;master&quot;);
     syn.listen();
   };
 })();
-" id="bookmarklet">Synopticon</a> I made for you.</p>
+" id="bookmarklet">master</a> bookmarklet.</p>
+
+    <p>
+    <a href="javascript:(function() {
+  var s=document.createElement(&quot;script&quot;);
+  s.src=&quot;http://localhost:8000/synopticon.js&quot;;
+  document.head.appendChild(s);
+  s.onload = function () {
+   Synopticon = require(&quot;/synopticon&quot;);
+    syn = new Synopticon(&quot;slave&quot;);
+    syn.listen();
+  };
+})();
+" id="bookmarklet">slave</a> bookmarklet.</p>
 
   <p>Use it wisely.</p>
   </body>

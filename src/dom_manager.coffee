@@ -44,7 +44,7 @@ class DOMManager
     found = iter.iterateNext()
     if found
       console.log("DOM change:", path, data)
-      #found.outerHTML = data
+      found.outerHTML = data
     else
       console.log("Couldn't find DOM element:")
       console.log(path, data)
