@@ -27,13 +27,11 @@ class Synopticon
     s.addEventListener "load", =>
       Spire = window.require("./spire.io.js")
       @spire = new Spire(url: @spire_url)
-      @spire.login "spireio@mailinator.com", "spire.io.rb", (err, session) =>
-        if !err
-          console.log "spire login worked"
-          callback()
-        else
+      @spire.api.discover (err, discovered) ->
+        if err
           console.log(err)
-
+        else
+          callback()
 
   listen_master: ->
     Channel = window.require("./spire/api/channel")

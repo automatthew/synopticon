@@ -1166,12 +1166,11 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
         _this.spire = new Spire({
           url: _this.spire_url
         });
-        return _this.spire.login("spireio@mailinator.com", "spire.io.rb", function(err, session) {
-          if (!err) {
-            console.log("spire login worked");
-            return callback();
-          } else {
+        return _this.spire.api.discover(function(err, discovered) {
+          if (err) {
             return console.log(err);
+          } else {
+            return callback();
           }
         });
       });
