@@ -6,12 +6,12 @@
     <h1>Synopticon</h1>
     <p>
     <a href="javascript:(function() {
-  var s=document.createElement(&quot;script&quot;);
-  s.src=&quot;http://localhost:8000/synopticon.js&quot;;
+  var s=document.createElement('script');
+  s.src='http://localhost:8000/synopticon.js';
   document.head.appendChild(s);
   s.onload = function () {
-   Synopticon = require(&quot;/synopticon&quot;);
-    syn = new Synopticon(&quot;master&quot;);
+   Synopticon = require('/synopticon');
+    syn = new Synopticon('master');
     syn.listen();
   };
 })();
@@ -19,12 +19,12 @@
 
     <p>
     <a href="javascript:(function() {
-  var s=document.createElement(&quot;script&quot;);
-  s.src=&quot;http://localhost:8000/synopticon.js&quot;;
+  var s=document.createElement('script');
+  s.src='http://localhost:8000/synopticon.js';
   document.head.appendChild(s);
   s.onload = function () {
-   Synopticon = require(&quot;/synopticon&quot;);
-    syn = new Synopticon(&quot;slave&quot;);
+   Synopticon = require('/synopticon');
+    syn = new Synopticon('slave');
     syn.listen();
   };
 })();
