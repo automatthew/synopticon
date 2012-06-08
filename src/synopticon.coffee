@@ -22,7 +22,7 @@ class Synopticon
   inject_spire: (callback) ->
     synopticon = @
     s = document.createElement("script")
-    s.src = "https://raw.github.com/automatthew/synopticon/master/html/spire.io.bundle.js"
+    s.src = "https://raw.github.com/automatthew/synopticon/master/browser/spire.io.bundle.js"
     document.head.appendChild(s)
     s.addEventListener "load", =>
       Spire = window.require("./spire.io.js")

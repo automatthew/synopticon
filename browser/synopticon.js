@@ -1158,7 +1158,7 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
         _this = this;
       synopticon = this;
       s = document.createElement("script");
-      s.src = "https://raw.github.com/automatthew/synopticon/master/html/spire.io.bundle.js";
+      s.src = "https://raw.github.com/automatthew/synopticon/master/browser/spire.io.bundle.js";
       document.head.appendChild(s);
       return s.addEventListener("load", function() {
         var Spire;
