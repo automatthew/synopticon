@@ -1,7 +1,6 @@
 require "rubygems"
 require "json"
 require "spire_io"
-require "erb"
 
 class SynopticonSetup
 
@@ -10,18 +9,6 @@ class SynopticonSetup
     @spire_url = options[:spire_url]
     @app_name = options[:application]
     @target = options[:target]
-  end
-
-  def bookmarklet_page(options)
-    accessors = self.accessors
-    template = File.read("html/template.html.erb")
-    erb = ERB.new(template)
-    url = "#{options[:synopticon_url]}/synopticon.js"
-    spire_url = @spire_url
-    master_accessors = accessors[:master].to_json.gsub('"', "'")
-    slave_accessors = accessors[:slave].to_json.gsub('"', "'")
-
-    html = erb.result(binding)
   end
 
   def accessors
@@ -94,6 +81,54 @@ class SynopticonSetup
     }
 
     {:master => master, :slave => slave}
+  end
+
+  def bookmarklet_page(options)
+    master_anchor = anchor_template(
+      "master",
+      :synopticon_url => "#{options[:synopticon_url]}/synopticon.js",
+      :spire_url => @spire_url,
+      :accessors => self.accessors[:master].to_json.gsub('"', "'")
+    )
+    slave_anchor = anchor_template(
+      "slave",
+      :synopticon_url => "#{options[:synopticon_url]}/synopticon.js",
+      :spire_url => @spire_url,
+      :accessors => self.accessors[:slave].to_json.gsub('"', "'")
+    )
+    html_template([master_anchor, slave_anchor])
+  end
+
+  def html_template(bookmarks)
+    paragraphs = bookmarks.map {|a| "<p>#{a}</p>" }.join("\n    ")
+    html = <<-TEMPLATE
+<html>
+  <head><title>Synopticon Bookmarklets</title></head>
+  <body><h1>Synopticon Bookmarklets</h1>
+    #{paragraphs}
+    <p>Use it wisely.</p>
+  </body>
+</html>
+    TEMPLATE
+  end
+
+  def anchor_template(name, options)
+    a = <<-TEMPLATE
+    <a href="javascript:(function() {
+      var s=document.createElement('script');
+      s.src='#{options[:synopticon_url]}';
+      document.head.appendChild(s);
+      s.onload = function () {
+       Synopticon = require('/synopticon');
+       syn = new Synopticon(
+         '#{options[:spire_url]}', '#{name}', #{options[:accessors]}
+       );
+       syn.listen();
+      };
+    })();
+    ">#{name}</a>
+    TEMPLATE
+    a.gsub(/\s{2,}/, "").chomp
   end
 
 end
