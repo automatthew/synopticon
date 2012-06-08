@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+
+require "pp"
+require "optparse"
+
+# setup loadpath
+here = File.dirname(__FILE__)
+SYNOPTICON_ROOT = File.expand_path("#{here}/..")
+$LOAD_PATH.unshift("#{SYNOPTICON_ROOT}/lib")
+
+require "synopticon"
+
+options = {
+  :spire_url => "https://api.spire.io",
+  :synopticon_url => "https://raw.github.com/automatthew/synopticon/master/html",
+  :application => "synopticon",
+  :secret_file => ".spire_secret",
+  :target => "default",
+}
+
+parser = OptionParser.new do |opts|
+  opts.on("-n", "--name=NAME", "arbitrary name for the editing session") do |name|
+    options[:target] = name
+  end
+  opts.on("-o", "--output=FILE", "write bookmarklet page to FILE") do |file|
+    options[:output] = file
+  end
+  opts.on("-s", "--secret=FILE",
+    "path to account secret file.  Defaults to .spire_secret") do |file|
+    options[:secret_file] = file
+  end
+  opts.on("-d", "--dev", "Development mode. Use local spire server and js") do
+    options[:development_mode] = true
+  end
+end
+parser.parse!
+
+if options.delete(:development_mode)
+  options[:spire_url] = "http://localhost:1337"
+  options[:synopticon_url] = "http://localhost:8000"
+  options[:secret_file] = ".spire_secret.dev"
+end
+
+options[:secret] = File.read(options[:secret_file]).chomp
+
+setup = SynopticonSetup.new(options)
+html = setup.bookmarklet_page(options)
+if options[:output]
+  File.open(options[:output], "w") do |f|
+    f.puts(html)
+  end
+else
+  puts html
+end
