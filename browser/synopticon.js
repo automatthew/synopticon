@@ -794,39 +794,23 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
         console.log("unknown role: " + role);
       }
       this.dom_manager = new DOMManager();
-      this.css_manager = new CSSManager(2000);
+      this.css_manager = new CSSManager(1000);
     }
 
     Synopticon.prototype.listen = function() {
-      var role, synopticon,
-        _this = this;
+      var Spire, role, synopticon;
       synopticon = this;
       role = synopticon.role;
-      return this.inject_spire(function() {
-        return synopticon["listen_" + role]();
+      Spire = window.require("./spire.io.js");
+      this.spire = new Spire({
+        url: this.spire_url
       });
-    };
-
-    Synopticon.prototype.inject_spire = function(callback) {
-      var s, synopticon,
-        _this = this;
-      synopticon = this;
-      s = document.createElement("script");
-      s.src = "https://raw.github.com/automatthew/synopticon/master/browser/spire.io.bundle.js";
-      document.head.appendChild(s);
-      return s.addEventListener("load", function() {
-        var Spire;
-        Spire = window.require("./spire.io.js");
-        _this.spire = new Spire({
-          url: _this.spire_url
-        });
-        return _this.spire.api.discover(function(err, discovered) {
-          if (err) {
-            return console.log(err);
-          } else {
-            return callback();
-          }
-        });
+      return this.spire.api.discover(function(err, discovered) {
+        if (err) {
+          return console.log(err);
+        } else {
+          return synopticon["listen_" + role]();
+        }
       });
     };
 
