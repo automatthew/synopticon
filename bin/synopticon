@@ -19,6 +19,10 @@ options = {
 }
 
 parser = OptionParser.new do |opts|
+  opts.on("-a", "--application=NAME",
+    "name of Spire app. Defaults to 'synopticon'") do |name|
+    options[:application] = name
+  end
   opts.on("-n", "--name=NAME", "arbitrary name for the editing session") do |name|
     options[:target] = name
   end
