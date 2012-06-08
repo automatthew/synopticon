@@ -1,23 +1,21 @@
 require "pp"
 
-$COFFEE = "node_modules/coffee-script/bin/coffee"
-
 $BROWSERIFY = "node_modules/browserify/bin/cmd.js"
 $BROWSERIFY_OPTIONS = "-o html/synopticon.js"
 
-task "build" => %w[build/diff.js] do
-  sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS}"
-end
+file $BROWSERIFY => "npm_update"
 
-task "update" do
+task "update" => %w[npm_update]
+
+task "npm_update" do
   sh "npm install"
 end
 
-file "build/diff.js" do
-  cp "src/diff.js", "build/"
+task "build" => $BROWSERIFY do
+  sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS}"
 end
 
-task "build:watch" do
+task "build:watch" => $BROWSERIFY do
   sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS} --watch"
 end
 
