@@ -11,23 +11,19 @@ class Synopticon
     else
       console.log("unknown role: #{role}")
     @dom_manager = new DOMManager()
-    @css_manager = new CSSManager(2000)
+    @css_manager = new CSSManager(1000)
 
   listen: ->
     synopticon = @
     role = synopticon.role
-    @inject_spire =>
-      synopticon["listen_#{role}"]()
 
-  inject_spire: (callback) ->
-    synopticon = @
     Spire = window.require("./spire.io.js")
     @spire = new Spire(url: @spire_url)
     @spire.api.discover (err, discovered) ->
       if err
         console.log(err)
       else
-        callback()
+        synopticon["listen_#{role}"]()
 
   listen_master: ->
     Channel = window.require("./spire/api/channel")
