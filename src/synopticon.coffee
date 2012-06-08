@@ -21,17 +21,13 @@ class Synopticon
 
   inject_spire: (callback) ->
     synopticon = @
-    s = document.createElement("script")
-    s.src = "https://raw.github.com/automatthew/synopticon/master/browser/spire.io.bundle.js"
-    document.head.appendChild(s)
-    s.addEventListener "load", =>
-      Spire = window.require("./spire.io.js")
-      @spire = new Spire(url: @spire_url)
-      @spire.api.discover (err, discovered) ->
-        if err
-          console.log(err)
-        else
-          callback()
+    Spire = window.require("./spire.io.js")
+    @spire = new Spire(url: @spire_url)
+    @spire.api.discover (err, discovered) ->
+      if err
+        console.log(err)
+      else
+        callback()
 
   listen_master: ->
     Channel = window.require("./spire/api/channel")

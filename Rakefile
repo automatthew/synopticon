@@ -1,7 +1,7 @@
 require "pp"
 
 $BROWSERIFY = "node_modules/browserify/bin/cmd.js"
-$BROWSERIFY_OPTIONS = "-o browser/synopticon.js"
+$BROWSERIFY_OPTIONS = "-o browser/synopticon.js --prelude false"
 
 file $BROWSERIFY => "npm_update"
 
