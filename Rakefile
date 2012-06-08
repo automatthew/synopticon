@@ -11,10 +11,12 @@ task "npm_update" do
   sh "npm install"
 end
 
+desc "Browserify to html/synopticon.js"
 task "build" => $BROWSERIFY do
   sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS}"
 end
 
+desc "Browserify with --watch to html/synopticon.js"
 task "build:watch" => $BROWSERIFY do
   sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS} --watch"
 end
