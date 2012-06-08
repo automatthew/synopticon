@@ -9,6 +9,10 @@ task "build" => %w[build/diff.js] do
   sh "#{$BROWSERIFY} src/synopticon.coffee #{$BROWSERIFY_OPTIONS}"
 end
 
+task "update" do
+  sh "npm install"
+end
+
 file "build/diff.js" do
   cp "src/diff.js", "build/"
 end

@@ -2,7 +2,7 @@
 
 Sync DOM and CSS changes to a page between browsers using real time notifications.
 
-Create a file named `.spire_secret`, then run this command:
+Create a file named `.spire_secret`, containing your spire.io account secret, then run this command:
 
     bin/synopticon -o bookmarklets.html
 
