@@ -35,9 +35,9 @@ class Synopticon
       content = message.content
       channel = message.data.channel_name
       if channel.indexOf(".dom") != -1
-        #synopticon.dom_manager.apply_change(content.path, content.data)
+        synopticon.dom_manager.apply_change(content.path, content.data)
       else if channel.indexOf(".css") != -1
-        #synopticon.css_manager.patch(content)
+        synopticon.css_manager.patch(content)
       else if channel.indexOf(".snapshot") != -1
         synopticon.dom_manager.apply_snapshot(message.content.dom)
         synopticon.css_manager.apply_snapshot(message.content.css)

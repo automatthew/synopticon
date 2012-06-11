@@ -573,13 +573,18 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
     }
 
     DOMManager.prototype.snapshot = function() {
-      var body, head, link, _i, _len, _ref;
+      var body, head, image, link, _i, _j, _len, _len1, _ref, _ref1;
       head = document.head.cloneNode(true);
       body = document.body.cloneNode(true);
       _ref = head.getElementsByTagName("link");
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         link = _ref[_i];
         link.href = "data:text/css;base64,";
+      }
+      _ref1 = body.getElementsByTagName("img");
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        image = _ref1[_j];
+        image.src = image.src.toString();
       }
       return {
         head: head.innerHTML,
@@ -668,7 +673,7 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
     DOMManager.prototype.apply_change = function(path, data) {
       var found, iter;
       this.ignore = true;
-      iter = document.evaluate(path, document, null, XPathResult.ANY_TYPE, null);
+      iter = this.iframe.contentDocument.evaluate(path, this.iframe.contentDocument, null, XPathResult.ANY_TYPE, null);
       found = iter.iterateNext();
       if (found) {
         console.log("DOM change:", path, data);
@@ -886,15 +891,19 @@ require.define("/css_manager.coffee", function (require, module, exports, __dirn
       for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
         rules = data[index];
         stylesheet = this.iframe.contentDocument.styleSheets[index];
-        _results.push((function() {
-          var _j, _len1, _results1;
-          _results1 = [];
-          for (i = _j = 0, _len1 = rules.length; _j < _len1; i = ++_j) {
-            rule = rules[i];
-            _results1.push(stylesheet.insertRule(rule, i));
-          }
-          return _results1;
-        })());
+        if (stylesheet.href) {
+          _results.push((function() {
+            var _j, _len1, _results1;
+            _results1 = [];
+            for (i = _j = 0, _len1 = rules.length; _j < _len1; i = ++_j) {
+              rule = rules[i];
+              _results1.push(stylesheet.insertRule(rule, i));
+            }
+            return _results1;
+          })());
+        } else {
+          _results.push(void 0);
+        }
       }
       return _results;
     };
@@ -904,7 +913,7 @@ require.define("/css_manager.coffee", function (require, module, exports, __dirn
       _results = [];
       for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
         patch = data[index];
-        stylesheet = document.styleSheets[index];
+        stylesheet = this.iframe.contentDocument.styleSheets[index];
         patcher = new CSSPatcher(stylesheet);
         _results.push(patcher.apply_patch(patch));
       }
@@ -981,9 +990,9 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
         content = message.content;
         channel = message.data.channel_name;
         if (channel.indexOf(".dom") !== -1) {
-
+          return synopticon.dom_manager.apply_change(content.path, content.data);
         } else if (channel.indexOf(".css") !== -1) {
-
+          return synopticon.css_manager.patch(content);
         } else if (channel.indexOf(".snapshot") !== -1) {
           synopticon.dom_manager.apply_snapshot(message.content.dom);
           return synopticon.css_manager.apply_snapshot(message.content.css);
@@ -995,7 +1004,6 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
     };
 
     Synopticon.prototype.send_dom_change = function(path, data) {
-      console.log(path, data);
       return this.spire_manager.publish("dom", {
         path: path,
         data: data

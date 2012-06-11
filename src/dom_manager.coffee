@@ -135,8 +135,8 @@ class DOMManager
   apply_change: (path, data) ->
     @ignore = true
 
-    iter = document.evaluate(
-      path, document, null,
+    iter = @iframe.contentDocument.evaluate(
+      path, @iframe.contentDocument, null,
       # TODO: figure out actually useful options
       XPathResult.ANY_TYPE, null
     )

@@ -45,14 +45,15 @@ class CSSManager
     @iframe ||= document.getElementById("synopticated")
     for rules, index in data
       stylesheet = @iframe.contentDocument.styleSheets[index]
-      for rule, i in rules
-        stylesheet.insertRule(rule, i)
+      if stylesheet.href
+        for rule, i in rules
+          stylesheet.insertRule(rule, i)
 
 
 
   patch: (data) ->
     for patch, index in data
-      stylesheet = document.styleSheets[index]
+      stylesheet = @iframe.contentDocument.styleSheets[index]
       patcher = new CSSPatcher(stylesheet)
       patcher.apply_patch(patch)
 
