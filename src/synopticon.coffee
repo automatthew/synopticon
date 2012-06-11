@@ -46,7 +46,6 @@ class Synopticon
         console.log(message.content)
 
   send_dom_change: (path, data) =>
-    console.log(path, data)
     @spire_manager.publish("dom", {path: path, data: data})
     # TODO: compress data for transmission via spire
 

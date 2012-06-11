@@ -9,6 +9,10 @@ class DOMManager
     for link in head.getElementsByTagName("link")
       link.href = "data:text/css;base64,"
 
+    for image in body.getElementsByTagName("img")
+      # make sure all the images have fully qualified src
+      image.src = image.src.toString()
+
     head: head.innerHTML
     body: body.innerHTML
 
