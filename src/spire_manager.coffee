@@ -31,9 +31,10 @@ class SpireManager
     console.log("creating channels")
     @css_channel = new Channel @spire, @accessors.css
     @dom_channel = new Channel @spire, @accessors.dom
-    @channels["dom"] = @dom_channel
-    @channels["css"] = @css_channel
     @snapshot_channel = new Channel @spire, @accessors.snapshot
+    @channels["css"] = @css_channel
+    @channels["dom"] = @dom_channel
+    @channels["snapshot"] = @snapshot_channel
 
   setup_listeners: ->
     console.log("creating subscription")

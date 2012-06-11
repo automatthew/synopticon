@@ -538,9 +538,10 @@ require.define("/spire_manager.coffee", function (require, module, exports, __di
       console.log("creating channels");
       this.css_channel = new Channel(this.spire, this.accessors.css);
       this.dom_channel = new Channel(this.spire, this.accessors.dom);
-      this.channels["dom"] = this.dom_channel;
+      this.snapshot_channel = new Channel(this.spire, this.accessors.snapshot);
       this.channels["css"] = this.css_channel;
-      return this.snapshot_channel = new Channel(this.spire, this.accessors.snapshot);
+      this.channels["dom"] = this.dom_channel;
+      return this.channels["snapshot"] = this.snapshot_channel;
     };
 
     SpireManager.prototype.setup_listeners = function() {
@@ -560,109 +561,6 @@ require.define("/spire_manager.coffee", function (require, module, exports, __di
 
 });
 
-require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
-  var CSSManager, CSSPatcher, Diff;
-
-  Diff = require("./diff");
-
-  CSSPatcher = require("./css_patcher");
-
-  CSSManager = (function() {
-
-    function CSSManager(interval) {
-      this.interval = interval;
-      this.current = this.previous = this.snapshot();
-    }
-
-    CSSManager.prototype.on_change = function(callback) {
-      return setInterval(this.create_listener(callback), this.interval);
-    };
-
-    CSSManager.prototype.create_listener = function(callback) {
-      var manager;
-      manager = this;
-      return function() {
-        var patches, worthy;
-        patches = manager.diff();
-        manager.previous = manager.current;
-        worthy = patches.some(function(diff) {
-          return diff.length > 0;
-        });
-        if (worthy) {
-          return callback(patches);
-        }
-      };
-    };
-
-    CSSManager.prototype.diff = function() {
-      var d, i, manager, new_rules, old_rules, patches, _i, _len, _ref;
-      manager = this;
-      manager.current = manager.snapshot();
-      patches = [];
-      _ref = manager.current;
-      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-        new_rules = _ref[i];
-        old_rules = manager.previous[i];
-        if (old_rules) {
-          d = Diff.diff_patch(old_rules, new_rules);
-          patches.push(d);
-        } else {
-          patches.push([]);
-          console.log("couldn't find rules");
-        }
-      }
-      return patches;
-    };
-
-    CSSManager.prototype.snapshot = function() {
-      var sheet, _i, _len, _ref, _results;
-      _ref = document.styleSheets;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sheet = _ref[_i];
-        _results.push(this.process_sheet(sheet));
-      }
-      return _results;
-    };
-
-    CSSManager.prototype.process_sheet = function(sheet) {
-      var rule, _i, _len, _ref, _results;
-      if (sheet.rules) {
-        _ref = sheet.rules;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          rule = _ref[_i];
-          _results.push(rule.cssText);
-        }
-        return _results;
-      } else {
-        return [];
-      }
-    };
-
-    CSSManager.prototype.patch = function(data) {
-      var index, patch, patcher, stylesheet, _i, _len, _results;
-      _results = [];
-      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
-        patch = data[index];
-        stylesheet = document.styleSheets[index];
-        patcher = new CSSPatcher(stylesheet);
-        _results.push(patcher.apply_patch(patch));
-      }
-      return _results;
-    };
-
-    return CSSManager;
-
-  })();
-
-  module.exports = CSSManager;
-
-}).call(this);
-
-});
-
 require.define("/dom_manager.coffee", function (require, module, exports, __dirname, __filename) {
 (function() {
   var DOMManager;
@@ -674,11 +572,52 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
       this.ignore = false;
     }
 
+    DOMManager.prototype.snapshot = function() {
+      var body, head, link, _i, _len, _ref;
+      head = document.head.cloneNode(true);
+      body = document.body.cloneNode(true);
+      _ref = head.getElementsByTagName("link");
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        link = _ref[_i];
+        link.href = "data:text/css;base64,";
+      }
+      return {
+        head: head.innerHTML,
+        body: body.innerHTML
+      };
+    };
+
     DOMManager.prototype.clobber = function() {
+      var manager, restore_link;
+      manager = this;
       this.saved_head = document.head.cloneNode(true);
       this.saved_body = document.body.cloneNode(true);
-      document.head.innerHTML = "<title>Synopticated!</title>";
-      return document.body.innerHTML = "<iframe></iframe>";
+      document.head.innerHTML = "<title>Synopticated!</title>\n<style>\n  body {\n    margin: 0px;\n  }\n  div#synopticon-control {\n    margin: 0px;\n    padding-top: 5px;\n    padding-bottom: 5px;\n    width: 100%;\n    background: #ddf;\n    border-bottom: 3px solid white;\n  }\n\n  div#synopticon-control span {\n    font-weight: bold;\n    margin-left: 1em;\n    margin-right: 4em;\n  }\n  a#synopticon-restore {\n  }\n</style>";
+      document.body.innerHTML = "<div id=\"synopticon-control\">\n  <span>Synopticating!</span>\n  <a id=\"synopticon-restore\" href=\"\">Restore original</a>\n</div>\n<iframe id=\"synopticated\" frameborder=\"0\"\n  marginheight=\"0\" marginwidth=\"0\"\n  width=\"100%\" height=\"100%\" ></iframe>";
+      this.init_iframe();
+      restore_link = document.getElementById("synopticon-restore");
+      return restore_link.addEventListener("click", function(event) {
+        event.preventDefault();
+        return manager.restore();
+      });
+    };
+
+    DOMManager.prototype.init_iframe = function() {
+      var manager;
+      manager = this;
+      this.iframe = document.getElementById("synopticated");
+      this.iframe.contentDocument.head.innerHTML = "<style>\n  @-webkit-keyframes fade {\n    0%   {\n      opacity: 0.3;\n      margin-left: 5px;\n      margin-top: 5px;\n    }\n    40%  {\n      opacity: 0.8;\n      margin-left: 20px;\n      margin-top: 20px;\n    }\n    100% {\n      opacity: 0.3;\n      margin-left: 5px;\n      margin-top: 5px;\n    }\n  }\n  h2 {\n    -webkit-animation-name: fade;\n    -webkit-animation-duration: 1.5s;\n    -webkit-animation-iteration-count: infinite;\n  }\n\n</style>";
+      return this.iframe.contentDocument.body.innerHTML = "<h2>Waiting for snapshot from master</h2>";
+    };
+
+    DOMManager.prototype.apply_snapshot = function(data) {
+      this.iframe.contentDocument.head.innerHTML = data.head;
+      return this.iframe.contentDocument.body.innerHTML = data.body;
+    };
+
+    DOMManager.prototype.restore = function() {
+      document.head.innerHTML = this.saved_head.innerHTML;
+      return document.body.innerHTML = this.saved_body.innerHTML;
     };
 
     DOMManager.prototype.on_change = function(callback) {
@@ -859,6 +798,129 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
 
 });
 
+require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
+(function() {
+  var CSSManager, CSSPatcher, Diff;
+
+  Diff = require("./diff");
+
+  CSSPatcher = require("./css_patcher");
+
+  CSSManager = (function() {
+
+    function CSSManager(interval) {
+      this.interval = interval;
+      this.current = this.previous = this.snapshot();
+    }
+
+    CSSManager.prototype.on_change = function(callback) {
+      return setInterval(this.create_listener(callback), this.interval);
+    };
+
+    CSSManager.prototype.create_listener = function(callback) {
+      var manager;
+      manager = this;
+      return function() {
+        var patches, worthy;
+        patches = manager.diff();
+        manager.previous = manager.current;
+        worthy = patches.some(function(diff) {
+          return diff.length > 0;
+        });
+        if (worthy) {
+          return callback(patches);
+        }
+      };
+    };
+
+    CSSManager.prototype.diff = function() {
+      var d, i, manager, new_rules, old_rules, patches, _i, _len, _ref;
+      manager = this;
+      manager.current = manager.snapshot();
+      patches = [];
+      _ref = manager.current;
+      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+        new_rules = _ref[i];
+        old_rules = manager.previous[i];
+        if (old_rules) {
+          d = Diff.diff_patch(old_rules, new_rules);
+          patches.push(d);
+        } else {
+          patches.push([]);
+          console.log("couldn't find rules");
+        }
+      }
+      return patches;
+    };
+
+    CSSManager.prototype.snapshot = function() {
+      var sheet, _i, _len, _ref, _results;
+      _ref = document.styleSheets;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sheet = _ref[_i];
+        _results.push(this.process_sheet(sheet));
+      }
+      return _results;
+    };
+
+    CSSManager.prototype.process_sheet = function(sheet) {
+      var rule, _i, _len, _ref, _results;
+      if (sheet.rules) {
+        _ref = sheet.rules;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          rule = _ref[_i];
+          _results.push(rule.cssText);
+        }
+        return _results;
+      } else {
+        return [];
+      }
+    };
+
+    CSSManager.prototype.apply_snapshot = function(data) {
+      var i, index, rule, rules, stylesheet, _i, _len, _results;
+      this.iframe || (this.iframe = document.getElementById("synopticated"));
+      _results = [];
+      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
+        rules = data[index];
+        stylesheet = this.iframe.contentDocument.styleSheets[index];
+        _results.push((function() {
+          var _j, _len1, _results1;
+          _results1 = [];
+          for (i = _j = 0, _len1 = rules.length; _j < _len1; i = ++_j) {
+            rule = rules[i];
+            _results1.push(stylesheet.insertRule(rule, i));
+          }
+          return _results1;
+        })());
+      }
+      return _results;
+    };
+
+    CSSManager.prototype.patch = function(data) {
+      var index, patch, patcher, stylesheet, _i, _len, _results;
+      _results = [];
+      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
+        patch = data[index];
+        stylesheet = document.styleSheets[index];
+        patcher = new CSSPatcher(stylesheet);
+        _results.push(patcher.apply_patch(patch));
+      }
+      return _results;
+    };
+
+    return CSSManager;
+
+  })();
+
+  module.exports = CSSManager;
+
+}).call(this);
+
+});
+
 require.define("/synopticon.coffee", function (require, module, exports, __dirname, __filename) {
     (function() {
   var CSSManager, DOMManager, SpireManager, Synopticon,
@@ -902,6 +964,10 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
     };
 
     Synopticon.prototype.start_master = function() {
+      this.spire_manager.publish("snapshot", {
+        dom: this.dom_manager.snapshot(),
+        css: this.css_manager.snapshot()
+      });
       this.css_manager.on_change(this.send_css_change);
       return this.dom_manager.on_change(this.send_dom_change);
     };
@@ -909,14 +975,18 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
     Synopticon.prototype.start_slave = function() {
       var synopticon;
       synopticon = this;
+      this.dom_manager.clobber();
       return this.spire_manager.listen(function(message) {
         var channel, content;
         content = message.content;
         channel = message.data.channel_name;
         if (channel.indexOf(".dom") !== -1) {
-          return synopticon.dom_manager.apply_change(content.path, content.data);
+
         } else if (channel.indexOf(".css") !== -1) {
-          return synopticon.css_manager.patch(content);
+
+        } else if (channel.indexOf(".snapshot") !== -1) {
+          synopticon.dom_manager.apply_snapshot(message.content.dom);
+          return synopticon.css_manager.apply_snapshot(message.content.css);
         } else {
           console.log(channel);
           return console.log(message.content);
