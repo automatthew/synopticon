@@ -1,65 +1,52 @@
 DOMManager = require("./dom_manager")
 CSSManager = require("./css_manager")
-
+SpireManager = require("./spire_manager")
 
 class Synopticon
   constructor: (@spire_url, @role, @accessors) ->
     if @role == "master"
-      console.log("starting Synopticon as master.")
+      console.log("starting Synopticon as master.", @spire_url)
     else if @role == "slave"
-      console.log("starting Synopticon as slave.")
+      console.log("starting Synopticon as slave.", @spire_url)
     else
       console.log("unknown role: #{role}")
+    @spire_manager = new SpireManager(@spire_url, @accessors)
     @dom_manager = new DOMManager()
     @css_manager = new CSSManager(1000)
 
   listen: ->
     synopticon = @
     role = synopticon.role
+    @spire_manager.start ->
+      synopticon["start_#{role}"]()
 
-    Spire = window.require("./spire.io.js")
-    @spire = new Spire(url: @spire_url)
-    @spire.api.discover (err, discovered) ->
-      if err
-        console.log(err)
-      else
-        synopticon["listen_#{role}"]()
 
-  listen_master: ->
-    Channel = window.require("./spire/api/channel")
-    @css_channel = new Channel @spire, @accessors.css
-    @dom_channel = new Channel @spire, @accessors.dom
-    @snapshot_channel = new Channel @spire, @accessors.snapshot
+  start_master: ->
+    @css_manager.on_change(@send_css_change)
+    @dom_manager.on_change(@send_dom_change)
 
-    @css_manager.listen(@send_css_change)
-    @dom_manager.listen(@send_dom_change)
-
-  listen_slave: ->
+  start_slave: ->
     synopticon = @
-    Subscription = window.require("./spire/api/subscription")
-    @subscription = new Subscription @spire, @accessors.subscription
-    @subscription.addListener "message", (message) ->
+    @spire_manager.listen (message) ->
       content = message.content
       channel = message.data.channel_name
       if channel.indexOf(".dom") != -1
         synopticon.dom_manager.apply_change(content.path, content.data)
       else if channel.indexOf(".css") != -1
-        for patch, i in content
-          synopticon.css_manager.apply_changes(i, patch)
+        synopticon.css_manager.patch(content)
       else
         console.log(channel)
         console.log(message.content)
-    @subscription.startListening(last: "now")
-
 
   send_dom_change: (path, data) =>
     # TODO: compress data for transmission via spire
     console.log(path, data)
-    @dom_channel.publish({path: path, data:data})
+    @spire_manager.publish("dom", {path: path, data: data})
 
   send_css_change: (patchset) =>
+    # TODO: remove unnecessary info from patchset
     console.log(patchset)
-    @css_channel.publish(patchset)
+    @spire_manager.publish("css", patchset)
 
   snapshot: ->
     dom = @dom_manager.snapshot()

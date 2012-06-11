@@ -3,39 +3,37 @@ CSSPatcher = require "./css_patcher"
 
 class CSSManager
   constructor: (@interval) ->
-    @last = @process_stylesheets()
+    @current = @previous = @snapshot()
 
-  snapshot: ->
-
-  listen: (callback) ->
+  on_change: (callback) ->
     setInterval(@create_listener(callback), @interval)
-
-  find_stylesheet_by_href: (href) ->
-
 
   create_listener: (callback) ->
     manager = @
     () ->
-      current = manager.process_stylesheets()
-      diffs = []
-      for new_rules, i in current
-        old_rules = manager.last[i]
-        if old_rules
-          d = Diff.diff_patch(old_rules, new_rules)
-          diffs.push(d)
-        else
-          diffs.push([])
-          console.log("couldn't find rules")
-      manager.last = current
-      worthy = diffs.some (diff) -> diff.length > 0
+      patches = manager.diff()
+      manager.previous = manager.current
+      worthy =  patches.some (diff) -> diff.length > 0
       if worthy
-        callback(diffs)
+        callback(patches)
 
-  process_stylesheets: ->
-    sheets = []
-    for sheet in document.styleSheets
-      sheets.push(@process_sheet(sheet))
-    sheets
+  diff: ->
+    manager = @
+    manager.current = manager.snapshot()
+    patches = []
+    for new_rules, i in manager.current
+      old_rules = manager.previous[i]
+      if old_rules
+        d = Diff.diff_patch(old_rules, new_rules)
+        patches.push(d)
+      else
+        patches.push([])
+        console.log("couldn't find rules")
+    patches
+
+
+  snapshot: ->
+    (@process_sheet(sheet) for sheet in document.styleSheets)
 
   process_sheet: (sheet) ->
     if sheet.rules
@@ -43,11 +41,11 @@ class CSSManager
     else
       []
 
-  apply_changes: (index, data) ->
-    stylesheet = document.styleSheets[index]
-
-    patcher = new CSSPatcher(stylesheet)
-    patcher.apply_patch(data)
+  patch: (data) ->
+    for patch, index in data
+      stylesheet = document.styleSheets[index]
+      patcher = new CSSPatcher(stylesheet)
+      patcher.apply_patch(patch)
 
 
 module.exports = CSSManager

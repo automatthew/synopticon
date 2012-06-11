@@ -3,7 +3,14 @@ class DOMManager
   constructor: ->
     @ignore = false
 
-  listen: (callback) ->
+  clobber: ->
+    @saved_head = document.head.cloneNode(true)
+    @saved_body = document.body.cloneNode(true)
+    document.head.innerHTML = "<title>Synopticated!</title>"
+    document.body.innerHTML = "<iframe></iframe>"
+
+
+  on_change: (callback) ->
     document.addEventListener("DOMSubtreeModified", @create_listener(callback))
 
   create_listener: (callback) ->
@@ -54,9 +61,9 @@ class DOMManager
   class Snapshotter
     constructor: ->
       @saved_head = document.head.cloneNode(true)
-      @bootstrap_styles()
+      @clobber_styles()
 
-    bootstrap_styles: ->
+    clobber_styles: ->
       stylesheets = (sheet for sheet in document.styleSheets)
       head = document.createElement("head")
       rulesets = []

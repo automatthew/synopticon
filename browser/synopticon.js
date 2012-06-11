@@ -1,286 +1,3 @@
-require.define("/dom_manager.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
-  var DOMManager;
-
-  DOMManager = (function() {
-    var Snapshotter;
-
-    function DOMManager() {
-      this.ignore = false;
-    }
-
-    DOMManager.prototype.listen = function(callback) {
-      return document.addEventListener("DOMSubtreeModified", this.create_listener(callback));
-    };
-
-    DOMManager.prototype.create_listener = function(callback) {
-      var manager;
-      manager = this;
-      return function(event) {
-        var element, path;
-        if (manager.usable_event(event)) {
-          element = event.target;
-          if (element.constructor === Text) {
-            element = element.parentElement;
-          }
-          path = manager.xpath(element);
-          return callback(path, element.outerHTML);
-        }
-      };
-    };
-
-    DOMManager.prototype.usable_event = function(event) {
-      return this.ignore === false;
-    };
-
-    DOMManager.prototype.xpath = function(element) {
-      var ix, sibling, siblings, _i, _len;
-      if (element.id !== "") {
-        return "id(\"" + element.id + "\")";
-      } else if ((element === document.body) || (element === document.head)) {
-        return "//" + element.tagName;
-      } else {
-        ix = 0;
-        siblings = element.parentNode.childNodes;
-        for (_i = 0, _len = siblings.length; _i < _len; _i++) {
-          sibling = siblings[_i];
-          if (sibling === element) {
-            return this.xpath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';
-          }
-          if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
-            ix++;
-          }
-        }
-      }
-    };
-
-    DOMManager.prototype.apply_change = function(path, data) {
-      var found, iter;
-      this.ignore = true;
-      iter = document.evaluate(path, document, null, XPathResult.ANY_TYPE, null);
-      found = iter.iterateNext();
-      if (found) {
-        console.log("DOM change:", path, data);
-        found.outerHTML = data;
-      } else {
-        console.log("Couldn't find DOM element:");
-        console.log(path, data);
-      }
-      return this.ignore = false;
-    };
-
-    Snapshotter = (function() {
-
-      function Snapshotter() {
-        this.saved_head = document.head.cloneNode(true);
-        this.bootstrap_styles();
-      }
-
-      Snapshotter.prototype.bootstrap_styles = function() {
-        var head, i, index, j, link_node, new_link, rule, rules, rulesets, sheet, stylesheet, stylesheets, _i, _j, _len, _len1, _results;
-        stylesheets = (function() {
-          var _i, _len, _ref, _results;
-          _ref = document.styleSheets;
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            sheet = _ref[_i];
-            _results.push(sheet);
-          }
-          return _results;
-        })();
-        head = document.createElement("head");
-        rulesets = [];
-        for (index = _i = 0, _len = stylesheets.length; _i < _len; index = ++_i) {
-          stylesheet = stylesheets[index];
-          if (stylesheet.href) {
-            rules = (function() {
-              var _j, _len1, _ref, _results;
-              _ref = stylesheet.rules;
-              _results = [];
-              for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-                rule = _ref[_j];
-                _results.push(rule.cssText);
-              }
-              return _results;
-            })();
-            rulesets.push(rules);
-            link_node = stylesheet.ownerNode;
-            document.head.removeChild(link_node);
-            new_link = this.empty_link();
-            head.appendChild(new_link);
-            new_link.setAttribute("orig_href", stylesheet.href);
-          }
-        }
-        document.head.innerHTML = head.innerHTML;
-        _results = [];
-        for (i = _j = 0, _len1 = rulesets.length; _j < _len1; i = ++_j) {
-          rules = rulesets[i];
-          stylesheet = document.styleSheets[i];
-          _results.push((function() {
-            var _k, _len2, _results1;
-            _results1 = [];
-            for (j = _k = 0, _len2 = rules.length; _k < _len2; j = ++_k) {
-              rule = rules[j];
-              _results1.push(stylesheet.insertRule(rule, j));
-            }
-            return _results1;
-          })());
-        }
-        return _results;
-      };
-
-      Snapshotter.prototype.empty_link = function() {
-        var link;
-        link = document.createElement("link");
-        link.type = "text/css";
-        link.rel = "stylesheet";
-        link.href = "data:text/css;base64,";
-        return link;
-      };
-
-      Snapshotter.prototype.find_stylesheet = function(href) {
-        var sheet, _i, _len, _ref;
-        _ref = document.styleSheets;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          sheet = _ref[_i];
-          if (!sheet.href) {
-            continue;
-          }
-          console.log("found", sheet.href);
-          if (sheet.href.indexOf(href) !== -1) {
-            return sheet;
-          }
-        }
-      };
-
-      Snapshotter.prototype.snapshot = function() {
-        return {
-          head: document.head.innerHTML,
-          body: document.body.innerHTML
-        };
-      };
-
-      Snapshotter.prototype.stylesheet_links = function() {
-        var link, links, _i, _len, _results;
-        links = document.getElementsByTagName("link");
-        _results = [];
-        for (_i = 0, _len = links.length; _i < _len; _i++) {
-          link = links[_i];
-          if (link.getAttribute("rel") === "stylesheet") {
-            _results.push(console.log(link));
-          }
-        }
-        return _results;
-      };
-
-      return Snapshotter;
-
-    })();
-
-    return DOMManager;
-
-  })();
-
-  module.exports = DOMManager;
-
-}).call(this);
-
-});
-
-require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
-  var CSSManager, CSSPatcher, Diff;
-
-  Diff = require("./diff");
-
-  CSSPatcher = require("./css_patcher");
-
-  CSSManager = (function() {
-
-    function CSSManager(interval) {
-      this.interval = interval;
-      this.last = this.process_stylesheets();
-    }
-
-    CSSManager.prototype.snapshot = function() {};
-
-    CSSManager.prototype.listen = function(callback) {
-      return setInterval(this.create_listener(callback), this.interval);
-    };
-
-    CSSManager.prototype.find_stylesheet_by_href = function(href) {};
-
-    CSSManager.prototype.create_listener = function(callback) {
-      var manager;
-      manager = this;
-      return function() {
-        var current, d, diffs, i, new_rules, old_rules, worthy, _i, _len;
-        current = manager.process_stylesheets();
-        diffs = [];
-        for (i = _i = 0, _len = current.length; _i < _len; i = ++_i) {
-          new_rules = current[i];
-          old_rules = manager.last[i];
-          if (old_rules) {
-            d = Diff.diff_patch(old_rules, new_rules);
-            diffs.push(d);
-          } else {
-            diffs.push([]);
-            console.log("couldn't find rules");
-          }
-        }
-        manager.last = current;
-        worthy = diffs.some(function(diff) {
-          return diff.length > 0;
-        });
-        if (worthy) {
-          return callback(diffs);
-        }
-      };
-    };
-
-    CSSManager.prototype.process_stylesheets = function() {
-      var sheet, sheets, _i, _len, _ref;
-      sheets = [];
-      _ref = document.styleSheets;
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sheet = _ref[_i];
-        sheets.push(this.process_sheet(sheet));
-      }
-      return sheets;
-    };
-
-    CSSManager.prototype.process_sheet = function(sheet) {
-      var rule, _i, _len, _ref, _results;
-      if (sheet.rules) {
-        _ref = sheet.rules;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          rule = _ref[_i];
-          _results.push(rule.cssText);
-        }
-        return _results;
-      } else {
-        return [];
-      }
-    };
-
-    CSSManager.prototype.apply_changes = function(index, data) {
-      var patcher, stylesheet;
-      stylesheet = document.styleSheets[index];
-      patcher = new CSSPatcher(stylesheet);
-      return patcher.apply_patch(data);
-    };
-
-    return CSSManager;
-
-  })();
-
-  module.exports = CSSManager;
-
-}).call(this);
-
-});
-
 require.define("/diff.js", function (require, module, exports, __dirname, __filename) {
 /* Copyright (c) 2006, 2008 Tony Garnock-Jones <tonyg@lshift.net>
  * Copyright (c) 2006, 2008 LShift Ltd. <query@lshift.net>
@@ -767,14 +484,391 @@ require.define("/patcher.coffee", function (require, module, exports, __dirname,
 
 });
 
+require.define("/spire_manager.coffee", function (require, module, exports, __dirname, __filename) {
+(function() {
+  var Channel, Spire, SpireManager;
+
+  Spire = window.require("./spire.io.js");
+
+  Channel = window.require("./spire/api/channel");
+
+  SpireManager = (function() {
+
+    function SpireManager(spire_url, accessors) {
+      this.spire_url = spire_url;
+      this.accessors = accessors;
+      this.spire = new Spire({
+        url: this.spire_url
+      });
+      this.channels = {};
+    }
+
+    SpireManager.prototype.start = function(callback) {
+      var manager;
+      manager = this;
+      return this.spire.api.discover(function(err, discovered) {
+        if (err) {
+          return console.log(err);
+        } else {
+          manager.setup_publishers();
+          manager.setup_listeners();
+          return callback();
+        }
+      });
+    };
+
+    SpireManager.prototype.listen = function(callback) {
+      this.subscription.addListener("message", callback);
+      return this.subscription.startListening({
+        last: "now"
+      });
+    };
+
+    SpireManager.prototype.publish = function(name, data) {
+      var channel;
+      channel = this.channels[name];
+      if (channel) {
+        return channel.publish(data);
+      } else {
+        throw "No such channel: " + name;
+      }
+    };
+
+    SpireManager.prototype.setup_publishers = function() {
+      console.log("creating channels");
+      this.css_channel = new Channel(this.spire, this.accessors.css);
+      this.dom_channel = new Channel(this.spire, this.accessors.dom);
+      this.channels["dom"] = this.dom_channel;
+      this.channels["css"] = this.css_channel;
+      return this.snapshot_channel = new Channel(this.spire, this.accessors.snapshot);
+    };
+
+    SpireManager.prototype.setup_listeners = function() {
+      var Subscription;
+      console.log("creating subscription");
+      Subscription = window.require("./spire/api/subscription");
+      return this.subscription = new Subscription(this.spire, this.accessors.subscription);
+    };
+
+    return SpireManager;
+
+  })();
+
+  module.exports = SpireManager;
+
+}).call(this);
+
+});
+
+require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
+(function() {
+  var CSSManager, CSSPatcher, Diff;
+
+  Diff = require("./diff");
+
+  CSSPatcher = require("./css_patcher");
+
+  CSSManager = (function() {
+
+    function CSSManager(interval) {
+      this.interval = interval;
+      this.current = this.previous = this.snapshot();
+    }
+
+    CSSManager.prototype.on_change = function(callback) {
+      return setInterval(this.create_listener(callback), this.interval);
+    };
+
+    CSSManager.prototype.create_listener = function(callback) {
+      var manager;
+      manager = this;
+      return function() {
+        var patches, worthy;
+        patches = manager.diff();
+        manager.previous = manager.current;
+        worthy = patches.some(function(diff) {
+          return diff.length > 0;
+        });
+        if (worthy) {
+          return callback(patches);
+        }
+      };
+    };
+
+    CSSManager.prototype.diff = function() {
+      var d, i, manager, new_rules, old_rules, patches, _i, _len, _ref;
+      manager = this;
+      manager.current = manager.snapshot();
+      patches = [];
+      _ref = manager.current;
+      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+        new_rules = _ref[i];
+        old_rules = manager.previous[i];
+        if (old_rules) {
+          d = Diff.diff_patch(old_rules, new_rules);
+          patches.push(d);
+        } else {
+          patches.push([]);
+          console.log("couldn't find rules");
+        }
+      }
+      return patches;
+    };
+
+    CSSManager.prototype.snapshot = function() {
+      var sheet, _i, _len, _ref, _results;
+      _ref = document.styleSheets;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sheet = _ref[_i];
+        _results.push(this.process_sheet(sheet));
+      }
+      return _results;
+    };
+
+    CSSManager.prototype.process_sheet = function(sheet) {
+      var rule, _i, _len, _ref, _results;
+      if (sheet.rules) {
+        _ref = sheet.rules;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          rule = _ref[_i];
+          _results.push(rule.cssText);
+        }
+        return _results;
+      } else {
+        return [];
+      }
+    };
+
+    CSSManager.prototype.patch = function(data) {
+      var index, patch, patcher, stylesheet, _i, _len, _results;
+      _results = [];
+      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
+        patch = data[index];
+        stylesheet = document.styleSheets[index];
+        patcher = new CSSPatcher(stylesheet);
+        _results.push(patcher.apply_patch(patch));
+      }
+      return _results;
+    };
+
+    return CSSManager;
+
+  })();
+
+  module.exports = CSSManager;
+
+}).call(this);
+
+});
+
+require.define("/dom_manager.coffee", function (require, module, exports, __dirname, __filename) {
+(function() {
+  var DOMManager;
+
+  DOMManager = (function() {
+    var Snapshotter;
+
+    function DOMManager() {
+      this.ignore = false;
+    }
+
+    DOMManager.prototype.clobber = function() {
+      this.saved_head = document.head.cloneNode(true);
+      this.saved_body = document.body.cloneNode(true);
+      document.head.innerHTML = "<title>Synopticated!</title>";
+      return document.body.innerHTML = "<iframe></iframe>";
+    };
+
+    DOMManager.prototype.on_change = function(callback) {
+      return document.addEventListener("DOMSubtreeModified", this.create_listener(callback));
+    };
+
+    DOMManager.prototype.create_listener = function(callback) {
+      var manager;
+      manager = this;
+      return function(event) {
+        var element, path;
+        if (manager.usable_event(event)) {
+          element = event.target;
+          if (element.constructor === Text) {
+            element = element.parentElement;
+          }
+          path = manager.xpath(element);
+          return callback(path, element.outerHTML);
+        }
+      };
+    };
+
+    DOMManager.prototype.usable_event = function(event) {
+      return this.ignore === false;
+    };
+
+    DOMManager.prototype.xpath = function(element) {
+      var ix, sibling, siblings, _i, _len;
+      if (element.id !== "") {
+        return "id(\"" + element.id + "\")";
+      } else if ((element === document.body) || (element === document.head)) {
+        return "//" + element.tagName;
+      } else {
+        ix = 0;
+        siblings = element.parentNode.childNodes;
+        for (_i = 0, _len = siblings.length; _i < _len; _i++) {
+          sibling = siblings[_i];
+          if (sibling === element) {
+            return this.xpath(element.parentNode) + '/' + element.tagName + '[' + (ix + 1) + ']';
+          }
+          if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+            ix++;
+          }
+        }
+      }
+    };
+
+    DOMManager.prototype.apply_change = function(path, data) {
+      var found, iter;
+      this.ignore = true;
+      iter = document.evaluate(path, document, null, XPathResult.ANY_TYPE, null);
+      found = iter.iterateNext();
+      if (found) {
+        console.log("DOM change:", path, data);
+        found.outerHTML = data;
+      } else {
+        console.log("Couldn't find DOM element:");
+        console.log(path, data);
+      }
+      return this.ignore = false;
+    };
+
+    Snapshotter = (function() {
+
+      function Snapshotter() {
+        this.saved_head = document.head.cloneNode(true);
+        this.clobber_styles();
+      }
+
+      Snapshotter.prototype.clobber_styles = function() {
+        var head, i, index, j, link_node, new_link, rule, rules, rulesets, sheet, stylesheet, stylesheets, _i, _j, _len, _len1, _results;
+        stylesheets = (function() {
+          var _i, _len, _ref, _results;
+          _ref = document.styleSheets;
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            sheet = _ref[_i];
+            _results.push(sheet);
+          }
+          return _results;
+        })();
+        head = document.createElement("head");
+        rulesets = [];
+        for (index = _i = 0, _len = stylesheets.length; _i < _len; index = ++_i) {
+          stylesheet = stylesheets[index];
+          if (stylesheet.href) {
+            rules = (function() {
+              var _j, _len1, _ref, _results;
+              _ref = stylesheet.rules;
+              _results = [];
+              for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+                rule = _ref[_j];
+                _results.push(rule.cssText);
+              }
+              return _results;
+            })();
+            rulesets.push(rules);
+            link_node = stylesheet.ownerNode;
+            document.head.removeChild(link_node);
+            new_link = this.empty_link();
+            head.appendChild(new_link);
+            new_link.setAttribute("orig_href", stylesheet.href);
+          }
+        }
+        document.head.innerHTML = head.innerHTML;
+        _results = [];
+        for (i = _j = 0, _len1 = rulesets.length; _j < _len1; i = ++_j) {
+          rules = rulesets[i];
+          stylesheet = document.styleSheets[i];
+          _results.push((function() {
+            var _k, _len2, _results1;
+            _results1 = [];
+            for (j = _k = 0, _len2 = rules.length; _k < _len2; j = ++_k) {
+              rule = rules[j];
+              _results1.push(stylesheet.insertRule(rule, j));
+            }
+            return _results1;
+          })());
+        }
+        return _results;
+      };
+
+      Snapshotter.prototype.empty_link = function() {
+        var link;
+        link = document.createElement("link");
+        link.type = "text/css";
+        link.rel = "stylesheet";
+        link.href = "data:text/css;base64,";
+        return link;
+      };
+
+      Snapshotter.prototype.find_stylesheet = function(href) {
+        var sheet, _i, _len, _ref;
+        _ref = document.styleSheets;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          sheet = _ref[_i];
+          if (!sheet.href) {
+            continue;
+          }
+          console.log("found", sheet.href);
+          if (sheet.href.indexOf(href) !== -1) {
+            return sheet;
+          }
+        }
+      };
+
+      Snapshotter.prototype.snapshot = function() {
+        return {
+          head: document.head.innerHTML,
+          body: document.body.innerHTML
+        };
+      };
+
+      Snapshotter.prototype.stylesheet_links = function() {
+        var link, links, _i, _len, _results;
+        links = document.getElementsByTagName("link");
+        _results = [];
+        for (_i = 0, _len = links.length; _i < _len; _i++) {
+          link = links[_i];
+          if (link.getAttribute("rel") === "stylesheet") {
+            _results.push(console.log(link));
+          }
+        }
+        return _results;
+      };
+
+      return Snapshotter;
+
+    })();
+
+    return DOMManager;
+
+  })();
+
+  module.exports = DOMManager;
+
+}).call(this);
+
+});
+
 require.define("/synopticon.coffee", function (require, module, exports, __dirname, __filename) {
     (function() {
-  var CSSManager, DOMManager, Synopticon,
+  var CSSManager, DOMManager, SpireManager, Synopticon,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   DOMManager = require("./dom_manager");
 
   CSSManager = require("./css_manager");
+
+  SpireManager = require("./spire_manager");
 
   Synopticon = (function() {
 
@@ -787,74 +881,52 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
       this.send_dom_change = __bind(this.send_dom_change, this);
 
       if (this.role === "master") {
-        console.log("starting Synopticon as master.");
+        console.log("starting Synopticon as master.", this.spire_url);
       } else if (this.role === "slave") {
-        console.log("starting Synopticon as slave.");
+        console.log("starting Synopticon as slave.", this.spire_url);
       } else {
         console.log("unknown role: " + role);
       }
+      this.spire_manager = new SpireManager(this.spire_url, this.accessors);
       this.dom_manager = new DOMManager();
       this.css_manager = new CSSManager(1000);
     }
 
     Synopticon.prototype.listen = function() {
-      var Spire, role, synopticon;
+      var role, synopticon;
       synopticon = this;
       role = synopticon.role;
-      Spire = window.require("./spire.io.js");
-      this.spire = new Spire({
-        url: this.spire_url
-      });
-      return this.spire.api.discover(function(err, discovered) {
-        if (err) {
-          return console.log(err);
-        } else {
-          return synopticon["listen_" + role]();
-        }
+      return this.spire_manager.start(function() {
+        return synopticon["start_" + role]();
       });
     };
 
-    Synopticon.prototype.listen_master = function() {
-      var Channel;
-      Channel = window.require("./spire/api/channel");
-      this.css_channel = new Channel(this.spire, this.accessors.css);
-      this.dom_channel = new Channel(this.spire, this.accessors.dom);
-      this.snapshot_channel = new Channel(this.spire, this.accessors.snapshot);
-      this.css_manager.listen(this.send_css_change);
-      return this.dom_manager.listen(this.send_dom_change);
+    Synopticon.prototype.start_master = function() {
+      this.css_manager.on_change(this.send_css_change);
+      return this.dom_manager.on_change(this.send_dom_change);
     };
 
-    Synopticon.prototype.listen_slave = function() {
-      var Subscription, synopticon;
+    Synopticon.prototype.start_slave = function() {
+      var synopticon;
       synopticon = this;
-      Subscription = window.require("./spire/api/subscription");
-      this.subscription = new Subscription(this.spire, this.accessors.subscription);
-      this.subscription.addListener("message", function(message) {
-        var channel, content, i, patch, _i, _len, _results;
+      return this.spire_manager.listen(function(message) {
+        var channel, content;
         content = message.content;
         channel = message.data.channel_name;
         if (channel.indexOf(".dom") !== -1) {
           return synopticon.dom_manager.apply_change(content.path, content.data);
         } else if (channel.indexOf(".css") !== -1) {
-          _results = [];
-          for (i = _i = 0, _len = content.length; _i < _len; i = ++_i) {
-            patch = content[i];
-            _results.push(synopticon.css_manager.apply_changes(i, patch));
-          }
-          return _results;
+          return synopticon.css_manager.patch(content);
         } else {
           console.log(channel);
           return console.log(message.content);
         }
       });
-      return this.subscription.startListening({
-        last: "now"
-      });
     };
 
     Synopticon.prototype.send_dom_change = function(path, data) {
       console.log(path, data);
-      return this.dom_channel.publish({
+      return this.spire_manager.publish("dom", {
         path: path,
         data: data
       });
@@ -862,7 +934,7 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
 
     Synopticon.prototype.send_css_change = function(patchset) {
       console.log(patchset);
-      return this.css_channel.publish(patchset);
+      return this.spire_manager.publish("css", patchset);
     };
 
     Synopticon.prototype.snapshot = function() {
