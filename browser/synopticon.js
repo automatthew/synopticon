@@ -561,6 +561,133 @@ require.define("/spire_manager.coffee", function (require, module, exports, __di
 
 });
 
+require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
+(function() {
+  var CSSManager, CSSPatcher, Diff;
+
+  Diff = require("./diff");
+
+  CSSPatcher = require("./css_patcher");
+
+  CSSManager = (function() {
+
+    function CSSManager(interval) {
+      this.interval = interval;
+      this.current = this.previous = this.snapshot();
+    }
+
+    CSSManager.prototype.on_change = function(callback) {
+      return setInterval(this.create_listener(callback), this.interval);
+    };
+
+    CSSManager.prototype.create_listener = function(callback) {
+      var manager;
+      manager = this;
+      return function() {
+        var patches, worthy;
+        patches = manager.diff();
+        manager.previous = manager.current;
+        worthy = patches.some(function(diff) {
+          return diff.length > 0;
+        });
+        if (worthy) {
+          return callback(patches);
+        }
+      };
+    };
+
+    CSSManager.prototype.diff = function() {
+      var d, i, manager, new_rules, old_rules, patches, _i, _len, _ref;
+      manager = this;
+      manager.current = manager.snapshot();
+      patches = [];
+      _ref = manager.current;
+      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+        new_rules = _ref[i];
+        old_rules = manager.previous[i];
+        if (old_rules) {
+          d = Diff.diff_patch(old_rules, new_rules);
+          patches.push(d);
+        } else {
+          patches.push([]);
+          console.log("couldn't find rules");
+        }
+      }
+      return patches;
+    };
+
+    CSSManager.prototype.snapshot = function() {
+      var sheet, _i, _len, _ref, _results;
+      _ref = document.styleSheets;
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        sheet = _ref[_i];
+        _results.push(this.process_sheet(sheet));
+      }
+      return _results;
+    };
+
+    CSSManager.prototype.process_sheet = function(sheet) {
+      var rule, _i, _len, _ref, _results;
+      if (sheet.rules) {
+        _ref = sheet.rules;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          rule = _ref[_i];
+          _results.push(rule.cssText);
+        }
+        return _results;
+      } else {
+        return [];
+      }
+    };
+
+    CSSManager.prototype.apply_snapshot = function(data) {
+      var i, index, rule, rules, stylesheet, _i, _len, _results;
+      this.iframe || (this.iframe = document.getElementById("synopticated"));
+      _results = [];
+      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
+        rules = data[index];
+        stylesheet = this.iframe.contentDocument.styleSheets[index];
+        if (stylesheet.href) {
+          _results.push((function() {
+            var _j, _len1, _results1;
+            _results1 = [];
+            for (i = _j = 0, _len1 = rules.length; _j < _len1; i = ++_j) {
+              rule = rules[i];
+              _results1.push(stylesheet.insertRule(rule, i));
+            }
+            return _results1;
+          })());
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
+    CSSManager.prototype.patch = function(data) {
+      var index, patch, patcher, stylesheet, _i, _len, _results;
+      _results = [];
+      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
+        patch = data[index];
+        stylesheet = this.iframe.contentDocument.styleSheets[index];
+        patcher = new CSSPatcher(stylesheet);
+        _results.push(patcher.apply_patch(patch));
+      }
+      return _results;
+    };
+
+    return CSSManager;
+
+  })();
+
+  module.exports = CSSManager;
+
+}).call(this);
+
+});
+
 require.define("/dom_manager.coffee", function (require, module, exports, __dirname, __filename) {
 (function() {
   var DOMManager;
@@ -611,7 +738,7 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
       var manager;
       manager = this;
       this.iframe = document.getElementById("synopticated");
-      this.iframe.contentDocument.head.innerHTML = "<style>\n  @-webkit-keyframes fade {\n    0%   {\n      opacity: 0.3;\n      margin-left: 5px;\n      margin-top: 5px;\n    }\n    40%  {\n      opacity: 0.8;\n      margin-left: 20px;\n      margin-top: 20px;\n    }\n    100% {\n      opacity: 0.3;\n      margin-left: 5px;\n      margin-top: 5px;\n    }\n  }\n  h2 {\n    -webkit-animation-name: fade;\n    -webkit-animation-duration: 1.5s;\n    -webkit-animation-iteration-count: infinite;\n  }\n\n</style>";
+      this.iframe.contentDocument.head.innerHTML = "<style>\n  @-webkit-keyframes throb {\n    0%   {\n      opacity: 0.8;\n      margin-top: 5px;\n    }\n    40%  {\n      opacity: 0.4;\n      margin-top: 10px;\n    }\n    100% {\n      opacity: 0.8;\n      margin-top: 5px;\n    }\n  }\n  h2 {\n    text-align: center;\n    -webkit-animation-name: throb;\n    -webkit-animation-duration: 1.5s;\n    -webkit-animation-iteration-count: infinite;\n  }\n\n</style>";
       return this.iframe.contentDocument.body.innerHTML = "<h2>Waiting for snapshot from master</h2>";
     };
 
@@ -798,133 +925,6 @@ require.define("/dom_manager.coffee", function (require, module, exports, __dirn
   })();
 
   module.exports = DOMManager;
-
-}).call(this);
-
-});
-
-require.define("/css_manager.coffee", function (require, module, exports, __dirname, __filename) {
-(function() {
-  var CSSManager, CSSPatcher, Diff;
-
-  Diff = require("./diff");
-
-  CSSPatcher = require("./css_patcher");
-
-  CSSManager = (function() {
-
-    function CSSManager(interval) {
-      this.interval = interval;
-      this.current = this.previous = this.snapshot();
-    }
-
-    CSSManager.prototype.on_change = function(callback) {
-      return setInterval(this.create_listener(callback), this.interval);
-    };
-
-    CSSManager.prototype.create_listener = function(callback) {
-      var manager;
-      manager = this;
-      return function() {
-        var patches, worthy;
-        patches = manager.diff();
-        manager.previous = manager.current;
-        worthy = patches.some(function(diff) {
-          return diff.length > 0;
-        });
-        if (worthy) {
-          return callback(patches);
-        }
-      };
-    };
-
-    CSSManager.prototype.diff = function() {
-      var d, i, manager, new_rules, old_rules, patches, _i, _len, _ref;
-      manager = this;
-      manager.current = manager.snapshot();
-      patches = [];
-      _ref = manager.current;
-      for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-        new_rules = _ref[i];
-        old_rules = manager.previous[i];
-        if (old_rules) {
-          d = Diff.diff_patch(old_rules, new_rules);
-          patches.push(d);
-        } else {
-          patches.push([]);
-          console.log("couldn't find rules");
-        }
-      }
-      return patches;
-    };
-
-    CSSManager.prototype.snapshot = function() {
-      var sheet, _i, _len, _ref, _results;
-      _ref = document.styleSheets;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        sheet = _ref[_i];
-        _results.push(this.process_sheet(sheet));
-      }
-      return _results;
-    };
-
-    CSSManager.prototype.process_sheet = function(sheet) {
-      var rule, _i, _len, _ref, _results;
-      if (sheet.rules) {
-        _ref = sheet.rules;
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          rule = _ref[_i];
-          _results.push(rule.cssText);
-        }
-        return _results;
-      } else {
-        return [];
-      }
-    };
-
-    CSSManager.prototype.apply_snapshot = function(data) {
-      var i, index, rule, rules, stylesheet, _i, _len, _results;
-      this.iframe || (this.iframe = document.getElementById("synopticated"));
-      _results = [];
-      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
-        rules = data[index];
-        stylesheet = this.iframe.contentDocument.styleSheets[index];
-        if (stylesheet.href) {
-          _results.push((function() {
-            var _j, _len1, _results1;
-            _results1 = [];
-            for (i = _j = 0, _len1 = rules.length; _j < _len1; i = ++_j) {
-              rule = rules[i];
-              _results1.push(stylesheet.insertRule(rule, i));
-            }
-            return _results1;
-          })());
-        } else {
-          _results.push(void 0);
-        }
-      }
-      return _results;
-    };
-
-    CSSManager.prototype.patch = function(data) {
-      var index, patch, patcher, stylesheet, _i, _len, _results;
-      _results = [];
-      for (index = _i = 0, _len = data.length; _i < _len; index = ++_i) {
-        patch = data[index];
-        stylesheet = this.iframe.contentDocument.styleSheets[index];
-        patcher = new CSSPatcher(stylesheet);
-        _results.push(patcher.apply_patch(patch));
-      }
-      return _results;
-    };
-
-    return CSSManager;
-
-  })();
-
-  module.exports = CSSManager;
 
 }).call(this);
 

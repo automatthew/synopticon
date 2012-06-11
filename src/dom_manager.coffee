@@ -64,25 +64,23 @@ class DOMManager
     @iframe = document.getElementById("synopticated")
     @iframe.contentDocument.head.innerHTML = """
       <style>
-        @-webkit-keyframes fade {
+        @-webkit-keyframes throb {
           0%   {
-            opacity: 0.3;
-            margin-left: 5px;
+            opacity: 0.8;
             margin-top: 5px;
           }
           40%  {
-            opacity: 0.8;
-            margin-left: 20px;
-            margin-top: 20px;
+            opacity: 0.4;
+            margin-top: 10px;
           }
           100% {
-            opacity: 0.3;
-            margin-left: 5px;
+            opacity: 0.8;
             margin-top: 5px;
           }
         }
         h2 {
-          -webkit-animation-name: fade;
+          text-align: center;
+          -webkit-animation-name: throb;
           -webkit-animation-duration: 1.5s;
           -webkit-animation-iteration-count: infinite;
         }
