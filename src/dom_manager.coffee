@@ -148,54 +148,5 @@ class DOMManager
     @ignore = false
 
 
-  class Snapshotter
-    constructor: ->
-      @saved_head = document.head.cloneNode(true)
-      @clobber_styles()
-
-    clobber_styles: ->
-      stylesheets = (sheet for sheet in document.styleSheets)
-      head = document.createElement("head")
-      rulesets = []
-      for stylesheet, index in stylesheets
-        if stylesheet.href
-          rules = (rule.cssText for rule in stylesheet.rules)
-          rulesets.push(rules)
-          link_node = stylesheet.ownerNode
-          document.head.removeChild(link_node)
-
-          new_link = @empty_link()
-          head.appendChild(new_link)
-          new_link.setAttribute("orig_href", stylesheet.href)
-      document.head.innerHTML = head.innerHTML
-
-      for rules, i in rulesets
-        stylesheet = document.styleSheets[i]
-        for rule, j in rules
-          stylesheet.insertRule(rule, j)
-
-    empty_link: ->
-      link = document.createElement("link")
-      link.type = "text/css"
-      link.rel = "stylesheet"
-      link.href = "data:text/css;base64,"
-      link
-
-    find_stylesheet: (href) ->
-      for sheet in document.styleSheets when sheet.href
-        console.log "found", sheet.href
-        if sheet.href.indexOf(href) != -1
-          return sheet
-
-    snapshot: ->
-      head: document.head.innerHTML
-      body: document.body.innerHTML
-
-    stylesheet_links:  ->
-      links = document.getElementsByTagName("link")
-      for link in links when link.getAttribute("rel") == "stylesheet"
-        console.log(link)
-
-
 module.exports = DOMManager
 
