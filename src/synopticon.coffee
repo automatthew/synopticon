@@ -35,7 +35,8 @@ class Synopticon
       content = message.content
       channel = message.data.channel_name
       if channel.indexOf(".dom") != -1
-        synopticon.dom_manager.apply_change(content.path, content.data)
+        for path, data of content
+          synopticon.dom_manager.apply_change(path, data)
       else if channel.indexOf(".css") != -1
         synopticon.css_manager.patch(content)
       else if channel.indexOf(".snapshot") != -1
@@ -46,7 +47,10 @@ class Synopticon
         console.log(message.content)
 
   send_dom_change: (path, data) =>
-    @spire_manager.publish("dom", {path: path, data: data})
+    payload = {}
+    payload[path] = data
+    #@spire_manager.publish("dom", {path: path, data: data})
+    @spire_manager.publish("dom", payload)
     # TODO: compress data for transmission via spire
 
   send_css_change: (patchset) =>

@@ -2,6 +2,7 @@ class Synopticon
 
   class Messages
 
+    attr_reader :channels, :subscription
     def initialize(options)
       @secret = options[:secret]
       @api = Spire::API.new(options[:url])

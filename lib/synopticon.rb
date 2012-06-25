@@ -1,24 +1,52 @@
+require "pp"
 require "optparse"
 
 require "rubygems"
 require "json"
+require "listen"
+require "nokogiri/diff"
+
 require "spire_io"
 
+# Base class to establish the common options parsing and set up
+# the messaging connection.
+#
+# Subclasses implement #run, which will be called by command dispatcher
+# in bin/synopticon. Subclasses may extend the options parser by overriding
+# #parser (using #super to get the # base parser).
+#
+# Default options live in the #options method, which is also a prime
+# place for overrides.
 class Synopticon
 
+  # Map command names to classes.
   def self.command(name)
     case name
-    when "bookmark", "bookmarker"
+    when "bookmark"
       Synopticon::Bookmarker.new
-    when "watcher"
+    when "watch"
       Synopticon::Watcher.new
     when "listener"
       Synopticon::Listener.new
     else
       puts "Usage: synopticon <command> [options]"
-      puts "Available commands: bookmarklet, watch, listen"
+      puts "Available commands: bookmark, watch, listen"
       exit
     end
+  end
+
+  attr_reader :messages
+
+  def initialize
+    self.parser.parse!
+    @secret = File.read(options[:secret_file]).chomp
+    @spire_url = options[:spire_url]
+    @app_name = options[:application]
+    @target = options[:target]
+    @messages = Synopticon::Messages.new(
+      :url => @spire_url, :secret => @secret,
+      :application => @app_name
+    )
   end
 
   def options
@@ -60,96 +88,7 @@ class Synopticon
     parser.help
   end
 
-  attr_reader :messages
-
-  def initialize
-    self.parser.parse!
-    @secret = File.read(options[:secret_file]).chomp
-    @spire_url = options[:spire_url]
-    @app_name = options[:application]
-    @target = options[:target]
-    @messages = Synopticon::Messages.new(
-      :url => @spire_url, :secret => @secret,
-      :application => @app_name
-    )
-  end
-
-  def accessors
-    return @accessors if @accessors
-
-    api = Spire::API.new(@spire_url)
-    api.discover
-
-    dom_name = "#{@target}.dom"
-    css_name = "#{@target}.css"
-    snapshot_name = "#{@target}.snapshot"
-
-    @session = api.create_session(@secret)
-
-    begin
-      @application = @session.get_application(@app_name)
-    rescue
-      @application = @session.create_application(@app_name)
-    end
-
-    begin
-      @dom_channel = @application.create_channel(dom_name)
-    rescue
-      @dom_channel = @application.channels[dom_name]
-    end
-
-    begin
-      @css_channel = @application.create_channel(css_name)
-    rescue
-      @css_channel = @application.channels[css_name]
-    end
-
-    begin
-      @snapshot_channel = @application.create_channel(snapshot_name)
-    rescue
-      @snapshot_channel = @application.channels[snapshot_name]
-    end
-    
-
-    @subscription = @application.create_subscription(
-      nil,
-      [dom_name, css_name, snapshot_name]
-    )
-
-    master = {
-      :dom => {
-        :url => @dom_channel.url,
-        :capabilities => {
-          :publish => @dom_channel.capabilities["publish"]
-        }
-      },
-      :css => {
-        :url => @css_channel.url,
-        :capabilities => {
-          :publish => @css_channel.capabilities["publish"]
-        }
-      },
-      :snapshot => {
-        :url => @snapshot_channel.url,
-        :capabilities => {
-          :publish => @snapshot_channel.capabilities["publish"]
-        }
-      },
-    }
-    slave = {
-      :subscription => {
-        :url => @subscription.url,
-        :capabilities => {
-          :events => @subscription.capabilities["events"]
-        }
-      },
-    }
-
-    @accessors = {:master => master, :slave => slave}
-  end
-
 end
-
 
 require "synopticon/messages"
 require "synopticon/bookmarker"

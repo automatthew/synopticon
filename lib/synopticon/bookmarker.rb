@@ -12,6 +12,7 @@ Usage: synopticon bookmark [options]
         "--output=FILE", "write bookmarklet page to FILE") do |file|
         options[:output] = file
       end
+      optparser
     end
 
     def run

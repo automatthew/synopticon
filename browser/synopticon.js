@@ -877,11 +877,16 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
       synopticon = this;
       this.dom_manager.clobber();
       return this.spire_manager.listen(function(message) {
-        var channel, content;
+        var channel, content, data, path, _results;
         content = message.content;
         channel = message.data.channel_name;
         if (channel.indexOf(".dom") !== -1) {
-          return synopticon.dom_manager.apply_change(content.path, content.data);
+          _results = [];
+          for (path in content) {
+            data = content[path];
+            _results.push(synopticon.dom_manager.apply_change(path, data));
+          }
+          return _results;
         } else if (channel.indexOf(".css") !== -1) {
           return synopticon.css_manager.patch(content);
         } else if (channel.indexOf(".snapshot") !== -1) {
@@ -895,10 +900,10 @@ require.define("/synopticon.coffee", function (require, module, exports, __dirna
     };
 
     Synopticon.prototype.send_dom_change = function(path, data) {
-      return this.spire_manager.publish("dom", {
-        path: path,
-        data: data
-      });
+      var payload;
+      payload = {};
+      payload[path] = data;
+      return this.spire_manager.publish("dom", payload);
     };
 
     Synopticon.prototype.send_css_change = function(patchset) {
